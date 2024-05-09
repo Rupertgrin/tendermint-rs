@@ -26,8 +26,8 @@ impl AuthSigMessage {
         pub_key: &ed25519_consensus::VerificationKey,
         sig: &ed25519_consensus::Signature,
     ) -> Self {
-        let mut pub_key_bytes = Vec::from(PUB_KEY_ED25519_AMINO_PREFIX);
-        pub_key_bytes.extend_from_slice(pub_key.as_bytes());
+        let mut pub_key_bytes = PUB_KEY_ED25519_AMINO_PREFIX.to_vec();
+        pub_key_bytes.extend(pub_key.as_bytes());
 
         Self {
             pub_key: pub_key_bytes,
@@ -40,17 +40,19 @@ impl TryFrom<AuthSigMessage> for proto::p2p::AuthSigMessage {
     type Error = Error;
 
     fn try_from(amino_msg: AuthSigMessage) -> Result<Self, Error> {
-        // Strip Amino prefix
+        // Ensure sufficient length for Amino prefix
         if amino_msg.pub_key.len() < 5 {
             return Err(Error::protocol());
         }
 
         let (amino_prefix, pub_key) = amino_msg.pub_key.split_at(5);
 
+        // Check if Amino prefix matches
         if amino_prefix != PUB_KEY_ED25519_AMINO_PREFIX {
             return Err(Error::protocol());
         }
 
+        // Convert public key to proto format
         let pub_key = proto::crypto::PublicKey {
             sum: Some(proto::crypto::public_key::Sum::Ed25519(pub_key.to_vec())),
         };
